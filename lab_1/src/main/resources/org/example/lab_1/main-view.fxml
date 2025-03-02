@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Menu?>
+<?import javafx.scene.control.MenuBar?>
+<?import javafx.scene.control.MenuItem?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.VBox?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.lab_1.ImageEditorController">
+  <top>
+    <MenuBar>
+      <Menu text="Файл">
+        <MenuItem text="Открыть..." onAction="#openFile"/>
+      </Menu>
+      <Menu text="Фильтры">
+        <Menu text="Точечные">
+          <MenuItem text="Инверсия" onAction="#applyInversionFilter"/>
+        </Menu>
+        <Menu text="Матричные">
+          <!-- Пустое подменю -->
+        </Menu>
+      </Menu>
+    </MenuBar>
+  </top>
+  <center>
+    <VBox alignment="CENTER" spacing="10.0">
+      <ImageView fx:id="imageView" fitWidth="400" fitHeight="400" preserveRatio="true"/>
+      <ProgressBar fx:id="progressBar" prefWidth="400"/>
+    </VBox>
+  </center>
+</BorderPane>
