@@ -9,6 +9,7 @@ import javafx.scene.image.WritableImage;
 import javafx.scene.control.ProgressBar;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import static org.example.lab_1.Helpers.Helpers.CheckBit;
 
 public class ImageEditorController {
 
@@ -112,5 +113,44 @@ public class ImageEditorController {
         progressBar.setVisible(false);
     }
 
+    public void Sepia() {
+        progressBar.setVisible(true);
+        Image img = imageView.getImage();
+        if(img == null){ return; }
 
+        int w = (int) img.getWidth();
+        int h = (int) img.getHeight();
+
+        WritableImage SepiaImg = new WritableImage(w, h);
+
+        PixelReader Reader = img.getPixelReader();
+        PixelWriter Writer = SepiaImg.getPixelWriter();
+
+        for(int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int argb = Reader.getArgb(x, y);
+
+                int a = (argb >> 24) & 0xFF;
+                int r = (argb >> 16) & 0xFF;
+                int g = (argb >> 8) & 0xFF;
+                int b = argb & 0xFF;
+
+                double grey = 0.299 * r + 0.587 * g + 0.144 * b;
+
+                int k = 32;
+                double f;
+                r = CheckBit((int) grey+(2*k), 0, 255);
+                f = grey+(0.5*k);
+                g = CheckBit((int) f, 0, 255);
+                b = CheckBit((int) grey-(1*k), 0, 255);
+
+                int newArgb = (a << 24) | (r << 16) | (g << 8) | b;
+                Writer.setArgb(x, y, newArgb);
+            }
+        }
+
+        imageView.setImage(SepiaImg);
+        System.out.println("Применён Sepia");
+        progressBar.setVisible(false);
+    }
 }

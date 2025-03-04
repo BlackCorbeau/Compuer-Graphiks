@@ -18,6 +18,7 @@
         <Menu text="Точечные">
           <MenuItem text="Инверсия" onAction="#applyInversionFilter"/>
           <MenuItem text="Оттенки серого" onAction="#GrayScaleFilter"/>
+          <MenuItem text="Сепия" onAction="#Sepia"/>
         </Menu>
         <Menu text="Матричные">
           <!-- Пустое подменю -->
