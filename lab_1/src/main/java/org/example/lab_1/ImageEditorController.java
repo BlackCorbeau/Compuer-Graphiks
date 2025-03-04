@@ -59,12 +59,10 @@ public class ImageEditorController {
                 int g = (argb >> 8) & 0xFF;
                 int b = argb & 0xFF;
 
-                // Invert colors
                 r = 255 - r;
                 g = 255 - g;
                 b = 255 - b;
 
-                // Reassemble ARGB
                 int invertedArgb = (a << 24) | (r << 16) | (g << 8) | b;
                 pixelWriter.setArgb(x, y, invertedArgb);
             }
@@ -74,4 +72,45 @@ public class ImageEditorController {
         System.out.println("Применен фильтр инверсии");
         progressBar.setVisible(false);
     }
+
+    public void GrayScaleFilter() {
+        progressBar.setVisible(true);
+
+        Image img = imageView.getImage();
+        if(img == null){ return; }
+
+        int w = (int) img.getWidth();
+        int h = (int) img.getHeight();
+
+        WritableImage GraySkaleImg = new WritableImage(w, h);
+
+        PixelReader Reader = img.getPixelReader();
+        PixelWriter Writer = GraySkaleImg.getPixelWriter();
+
+        for(int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int argb = Reader.getArgb(x, y);
+
+                int a = (argb >> 24) & 0xFF;
+                int r = (argb >> 16) & 0xFF;
+                int g = (argb >> 8) & 0xFF;
+                int b = argb & 0xFF;
+
+                double grey = 0.299 * r + 0.587 * g + 0.144 * b;
+
+                r = (int) grey;
+                g = (int) grey;
+                b = (int) grey;
+
+                int newArgb = (a << 24) | (r << 16) | (g << 8) | b;
+                Writer.setArgb(x, y, newArgb);
+            }
+        }
+
+        imageView.setImage(GraySkaleImg);
+        System.out.println("Применён оттенки серого");
+        progressBar.setVisible(false);
+    }
+
+
 }
