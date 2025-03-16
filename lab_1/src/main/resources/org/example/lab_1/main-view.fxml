@@ -8,6 +8,7 @@
 <?import javafx.scene.layout.BorderPane?>
 <?import javafx.scene.layout.VBox?>
 
+<?import javafx.scene.control.Button?>
 <BorderPane xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.lab_1.ImageEditorController">
   <top>
     <MenuBar>
@@ -19,9 +20,20 @@
           <MenuItem text="Инверсия" onAction="#applyInversionFilter"/>
           <MenuItem text="Оттенки серого" onAction="#GrayScaleFilter"/>
           <MenuItem text="Сепия" onAction="#Sepia"/>
+          <MenuItem text="Увеличить яркость" onAction="#GetYarc"/>
+          <MenuItem text="Сдвиг" onAction="#Sdvig"/>
+          <MenuItem text="Серый мир" onAction="#grayWorld"/>
+          <MenuItem text="Автоуровни" onAction="#autoLevels"/>
+          <MenuItem text="Идеальный отражатель" onAction="#IDdealOtr" />
+          <MenuItem text="Медиана" onAction="#applyMedianFilter"/>
         </Menu>
         <Menu text="Матричные">
-          <!-- Пустое подменю -->
+          <MenuItem text="Тиснение" />
+          <MenuItem text="Разматие в движении" />
+          <MenuItem text="Разширение" />
+          <MenuItem text="Сужение" />
+          <MenuItem text="Фильтр Собеля" />
+          <MenuItem text="Фильтр Щарра" />
         </Menu>
       </Menu>
     </MenuBar>
@@ -32,4 +44,9 @@
       <ProgressBar fx:id="progressBar" prefWidth="400"/>
     </VBox>
   </center>
+  <bottom>
+    <VBox alignment="CENTER" spacing="50" >
+      <Button onAction="#returnToOldImage">Вернуть к начальному состоянию</Button>
+    </VBox>
+  </bottom>
 </BorderPane>
