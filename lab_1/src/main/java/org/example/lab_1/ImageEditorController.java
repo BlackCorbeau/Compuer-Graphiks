@@ -12,6 +12,8 @@ import javafx.stage.Stage;
 import static org.example.lab_1.Helpers.Helpers.CheckBit;
 import static org.example.lab_1.Helpers.Helpers.NormolizeIdealOtr;
 import static org.example.lab_1.Helpers.Helpers.sortArray;
+import static org.example.lab_1.Helpers.Helpers.MatrixFilter;
+import static org.example.lab_1.Helpers.Helpers.DoubleMatrixFilter;
 
 public class ImageEditorController {
 
@@ -441,7 +443,7 @@ public class ImageEditorController {
         progressBar.setVisible(false);
     }
 
-    public void applyMedianFilter() {
+    public void MedianFilter() {
         progressBar.setVisible(true);
         oldImg = imageView.getImage();
         Image img = imageView.getImage();
@@ -494,4 +496,154 @@ public class ImageEditorController {
         progressBar.setVisible(false);
     }
 
+    public void EmbossFilter() {
+        progressBar.setVisible(true);
+        oldImg = imageView.getImage();
+        double[][] kernel = {
+                {0, 1, 0},
+                {1, 0, -1},
+                {0, -1, 0}
+        };
+        MatrixFilter(imageView, kernel, "Тиснение");
+        progressBar.setVisible(false);
+    }
+
+    public void goFilter() {
+        progressBar.setVisible(true);
+        oldImg = imageView.getImage();
+        double[][] kernel = {
+                {1.0 / 3, 0, 0},
+                {1.0 / 3, 0, 0},
+                {1.0 / 3, 0, 0}
+        };
+        MatrixFilter(imageView, kernel, "Размытие в Движении");
+        progressBar.setVisible(false);
+    }
+
+    public void RazshirFilter() {
+        progressBar.setVisible(true);
+        oldImg = imageView.getImage();
+        Image img = imageView.getImage();
+        if (img == null) {
+            return;
+        }
+
+        int w = (int) img.getWidth();
+        int h = (int) img.getHeight();
+
+        PixelReader reader = img.getPixelReader();
+        WritableImage dilationImg = new WritableImage(w, h);
+        PixelWriter writer = dilationImg.getPixelWriter();
+
+        for (int y = 1; y < h - 1; y++) {
+            for (int x = 1; x < w - 1; x++) {
+                int maxRed = 0;
+                int maxGreen = 0;
+                int maxBlue = 0;
+
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dx = -1; dx <= 1; dx++) {
+                        int argb = reader.getArgb(x + dx, y + dy);
+                        int r = (argb >> 16) & 0xFF;
+                        int g = (argb >> 8) & 0xFF;
+                        int b = argb & 0xFF;
+
+                        if (r > maxRed) maxRed = r;
+                        if (g > maxGreen) maxGreen = g;
+                        if (b > maxBlue) maxBlue = b;
+                    }
+                }
+
+                int a = (reader.getArgb(x, y) >> 24) & 0xFF;
+
+                int newArgb = (a << 24) | (maxRed << 16) | (maxGreen << 8) | maxBlue;
+                writer.setArgb(x, y, newArgb);
+            }
+        }
+
+        imageView.setImage(dilationImg);
+        System.out.println("Применен фильтр: Разширение");
+        progressBar.setVisible(false);
+    }
+
+    public void ErosionFilter() {
+        progressBar.setVisible(true);
+        oldImg = imageView.getImage();
+        Image img = imageView.getImage();
+        if (img == null) {
+            return;
+        }
+
+        int w = (int) img.getWidth();
+        int h = (int) img.getHeight();
+
+        PixelReader reader = img.getPixelReader();
+        WritableImage erosionImg = new WritableImage(w, h);
+        PixelWriter writer = erosionImg.getPixelWriter();
+
+        for (int y = 1; y < h - 1; y++) {
+            for (int x = 1; x < w - 1; x++) {
+                int minRed = 255;
+                int minGreen = 255;
+                int minBlue = 255;
+
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dx = -1; dx <= 1; dx++) {
+                        int argb = reader.getArgb(x + dx, y + dy);
+                        int r = (argb >> 16) & 0xFF;
+                        int g = (argb >> 8) & 0xFF;
+                        int b = argb & 0xFF;
+
+                        if (r < minRed) minRed = r;
+                        if (g < minGreen) minGreen = g;
+                        if (b < minBlue) minBlue = b;
+                    }
+                }
+
+                int a = (reader.getArgb(x, y) >> 24) & 0xFF;
+
+                int newArgb = (a << 24) | (minRed << 16) | (minGreen << 8) | minBlue;
+                writer.setArgb(x, y, newArgb);
+            }
+        }
+
+        imageView.setImage(erosionImg);
+        System.out.println("Применен фильтр: Сужение");
+        progressBar.setVisible(false);
+    }
+
+    public void SobelFilter() {
+        progressBar.setVisible(true);
+        oldImg = imageView.getImage();
+        double[][] dx = {
+                {-1, 0, 1},
+                {-2, 0, 2},
+                {-1, 0, 1}
+        };
+
+        double[][] dy = {
+                {-1, -2, -1},
+                {0, 0, 0},
+                {1, 2, 1}
+        };
+        DoubleMatrixFilter(imageView, dx, dy, "Фильтр Собеля");
+        progressBar.setVisible(false);
+    }
+
+    public void SharrFilter() {
+        progressBar.setVisible(true);
+        oldImg = imageView.getImage();
+        double[][] dx = {
+                {3, 10, 3},
+                {10, 0, -10},
+                {-3, -10, -3}
+        };
+        double[][] dy = {
+                {3, 0, -3},
+                {10, 0, -10},
+                {3, 0, -3}
+        };
+        DoubleMatrixFilter(imageView, dx, dy, "Фильтр Щарра");
+        progressBar.setVisible(false);
+    }
 }

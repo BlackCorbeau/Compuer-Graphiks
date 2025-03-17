@@ -25,15 +25,15 @@
           <MenuItem text="Серый мир" onAction="#grayWorld"/>
           <MenuItem text="Автоуровни" onAction="#autoLevels"/>
           <MenuItem text="Идеальный отражатель" onAction="#IDdealOtr" />
-          <MenuItem text="Медиана" onAction="#applyMedianFilter"/>
+          <MenuItem text="Медиана" onAction="#MedianFilter"/>
         </Menu>
         <Menu text="Матричные">
-          <MenuItem text="Тиснение" />
-          <MenuItem text="Разматие в движении" />
-          <MenuItem text="Разширение" />
-          <MenuItem text="Сужение" />
-          <MenuItem text="Фильтр Собеля" />
-          <MenuItem text="Фильтр Щарра" />
+          <MenuItem text="Тиснение" onAction="#EmbossFilter"/>
+          <MenuItem text="Разматие в движении" onAction="#goFilter" />
+          <MenuItem text="Разширение" onAction="#RazshirFilter" />
+          <MenuItem text="Сужение" onAction="#ErosionFilter"/>
+          <MenuItem text="Фильтр Собеля" onAction="#SobelFilter" />
+          <MenuItem text="Фильтр Щарра" onAction="#SharrFilter"/>
         </Menu>
       </Menu>
     </MenuBar>
