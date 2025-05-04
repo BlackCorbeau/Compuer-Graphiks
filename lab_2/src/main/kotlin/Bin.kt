@@ -3,15 +3,12 @@ package org.exampl
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.nio.ShortBuffer
 
-class Bin {
-    companion object {
-        var X = 0
-        var Y = 0
-        var Z = 0
-        lateinit var array: ShortArray
-    }
+object Bin {
+    var X = 0
+    var Y = 0
+    var Z = 0
+    lateinit var array: ShortArray
 
     fun readBIN(path: String) {
         if (File(path).exists()) {

@@ -8,7 +8,7 @@ import javax.swing.filechooser.FileNameExtensionFilter
 class Form1 {
     private var loaded = false
     var currentLayer = 0
-    private val bin = Bin()
+    private val bin = Bin
     val view = View()
 
     private var minTF = -3000
@@ -35,6 +35,7 @@ class Form1 {
             bin.readBIN(file.absolutePath)
             view.setupView(800, 600) // Установите размеры окна
             loaded = true
+            view.needReload = true // Убедимся, что текстура загружается сразу после выбора файла
         }
     }
 

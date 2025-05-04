@@ -1,7 +1,6 @@
 package org.exampl
 
 import org.lwjgl.opengl.GL11.*
-import java.awt.Color
 import java.awt.image.BufferedImage
 import java.nio.ByteBuffer
 
