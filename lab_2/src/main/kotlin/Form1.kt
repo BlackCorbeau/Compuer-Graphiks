@@ -7,9 +7,9 @@ import javax.swing.filechooser.FileNameExtensionFilter
 
 class Form1 {
     private var loaded = false
-    private var currentLayer = 0
+    var currentLayer = 0
     private val bin = Bin()
-    private val view = View()
+    val view = View()
 
     private var minTF = -3000
     private var widthTF = 2000
@@ -42,11 +42,14 @@ class Form1 {
         openFileDialog()
         while (!glfwWindowShouldClose(window)) {
             displayFPS()
+            glfwPollEvents()
+
             if (loaded) {
+                glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
                 view.drawQuads(currentLayer)
             }
+
             glfwSwapBuffers(window)
-            glfwPollEvents()
         }
     }
 }

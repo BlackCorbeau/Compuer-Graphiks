@@ -21,18 +21,33 @@ dependencies {
     implementation("org.lwjgl:lwjgl")
     implementation("org.lwjgl:lwjgl-glfw")
     implementation("org.lwjgl:lwjgl-opengl")
+    implementation("org.lwjgl:lwjgl-stb")
+    implementation("org.lwjgl:lwjgl-nanovg")
+    implementation("org.lwjgl:lwjgl-nfd")
+    implementation("org.lwjgl:lwjgl-openal")
 
     runtimeOnly("org.lwjgl:lwjgl::$lwjglNatives")
     runtimeOnly("org.lwjgl:lwjgl-glfw::$lwjglNatives")
     runtimeOnly("org.lwjgl:lwjgl-opengl::$lwjglNatives")
+    runtimeOnly("org.lwjgl:lwjgl-stb::$lwjglNatives")
+    runtimeOnly("org.lwjgl:lwjgl-nanovg::$lwjglNatives")
+    runtimeOnly("org.lwjgl:lwjgl-nfd::$lwjglNatives")
+    runtimeOnly("org.lwjgl:lwjgl-openal::$lwjglNatives")
+
+    // JavaFX bindings
+    implementation("org.openjfx:javafx-controls:17")
+    implementation("org.openjfx:javafx-fxml:17")
+    implementation("org.openjfx:javafx-graphics:17")
 }
 
 application {
     mainClass.set("org.exampl.MainKt")
 }
+
 tasks.test {
     useJUnitPlatform()
 }
+
 kotlin {
     jvmToolchain(21)
 }
