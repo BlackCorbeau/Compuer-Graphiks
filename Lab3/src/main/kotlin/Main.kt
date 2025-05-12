@@ -26,10 +26,123 @@ class AtomModelShader {
     private val orbitRadii = floatArrayOf(4.0f, 6.0f, 8.0f)
     private var rotationAngle = 0.0f
 
+    private var nucleusRotationAngle = 0.0f
+    private val electronSpeeds = floatArrayOf(1.0f, 1.3f, 0.8f) // Разные скорости для электронов
+    private val protonSpeeds = floatArrayOf(0.7f, 1.1f, 0.9f)   // Скорости для протонов
+
     fun run() {
         init()
         loop()
         cleanup()
+    }
+
+    // ... (init(), initShaders(), initBuffers() остаются без изменений)
+
+    private fun loop() {
+        var lastTime = glfwGetTime()
+        while (isRunning && !glfwWindowShouldClose(window)) {
+            val currentTime = glfwGetTime()
+            val deltaTime = (currentTime - lastTime).toFloat()
+            lastTime = currentTime
+
+            glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
+
+            // Обновление углов вращения с учетом deltaTime
+            nucleusRotationAngle += 0.5f * deltaTime
+            rotationAngle += 0.6f * deltaTime
+
+            // Активация шейдера
+            glUseProgram(shaderProgram)
+
+            // Настройка камеры
+            val view = createViewMatrix()
+            val projection = createProjectionMatrix()
+
+            // Установка uniform-переменных
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), false, view)
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), false, projection)
+            glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 10f, 10f, 10f)
+            glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1f, 1f, 1f)
+            glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"),
+                0f, 0f, cameraDistance)
+
+            // Отрисовка ядра с вращением
+            drawNucleus()
+
+            // Отрисовка электронов и протонов
+            drawParticles()
+
+            glfwSwapBuffers(window)
+            glfwPollEvents()
+        }
+    }
+
+    private fun drawNucleus() {
+        val model = org.joml.Matrix4f()
+            .rotateY(nucleusRotationAngle) // Вращение ядра
+            .scale(nucleusRadius)
+
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, model.get(FloatArray(16)).toFloatBuffer())
+        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.5f, 1.0f)
+
+        glBindVertexArray(vao)
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 32 * 32 * 6)
+        glBindVertexArray(0)
+    }
+
+    private fun drawParticles() {
+        // Цвета для частиц
+        val electronColors = arrayOf(
+            floatArrayOf(1f, 0.2f, 0.2f), // Красный
+            floatArrayOf(0.2f, 1f, 0.2f), // Зеленый
+            floatArrayOf(0.4f, 0.4f, 1f)  // Синий
+        )
+
+        val protonColors = arrayOf(
+            floatArrayOf(1f, 0.5f, 0.5f), // Светло-красный
+            floatArrayOf(0.5f, 1f, 0.5f), // Светло-зеленый
+            floatArrayOf(0.7f, 0.7f, 1f)  // Светло-синий
+        )
+
+        // Отрисовка электронов
+        for (i in 0 until 3) {
+            val angle = rotationAngle * electronSpeeds[i]
+            val x = orbitRadii[i] * cos(angle.toDouble()).toFloat()
+            val z = orbitRadii[i] * sin(angle.toDouble()).toFloat()
+            val y = orbitRadii[i] * 0.3f * sin(angle.toDouble() * 1.5).toFloat()
+
+            val model = org.joml.Matrix4f()
+                .translate(x, y, z)
+                .scale(electronRadius)
+
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, model.get(FloatArray(16)).toFloatBuffer())
+            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"),
+                electronColors[i][0], electronColors[i][1], electronColors[i][2])
+
+            glBindVertexArray(vao)
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 32 * 32 * 6)
+            glBindVertexArray(0)
+        }
+
+        // Отрисовка протонов (на других орбитах)
+        for (i in 0 until 3) {
+            val angle = rotationAngle * protonSpeeds[i] + PI.toFloat() // Смещение на 180 градусов
+            val x = (orbitRadii[i] + 1.5f) * cos(angle.toDouble()).toFloat()
+            val z = (orbitRadii[i] + 1.5f) * sin(angle.toDouble()).toFloat()
+            val y = (orbitRadii[i] + 1.5f) * 0.3f * cos(angle.toDouble() * 1.2).toFloat()
+
+            val model = org.joml.Matrix4f()
+                .translate(x, y, z)
+                .scale(electronRadius * 0.8f) // Протоны немного меньше
+
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, model.get(FloatArray(16)).toFloatBuffer())
+            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"),
+                protonColors[i][0], protonColors[i][1], protonColors[i][2])
+
+            glBindVertexArray(vao)
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 32 * 32 * 6)
+            glBindVertexArray(0)
+        }
     }
 
     private fun init() {
@@ -237,39 +350,6 @@ class AtomModelShader {
         }
     }
 
-    private fun loop() {
-        while (isRunning && !glfwWindowShouldClose(window)) {
-            glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-
-            // Обновление угла вращения
-            rotationAngle += 0.6f
-
-            // Активация шейдера
-            glUseProgram(shaderProgram)
-
-            // Настройка камеры
-            val view = createViewMatrix()
-            val projection = createProjectionMatrix()
-
-            // Установка uniform-переменных
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "view"), false, view)
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), false, projection)
-            glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 10f, 10f, 10f)
-            glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1f, 1f, 1f)
-            glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"),
-                0f, 0f, cameraDistance)
-
-            // Отрисовка ядра
-            drawNucleus()
-
-            // Отрисовка электронов
-            drawElectrons()
-
-            glfwSwapBuffers(window)
-            glfwPollEvents()
-        }
-    }
-
     private fun createViewMatrix(): FloatBuffer {
         val matrix = org.joml.Matrix4f()
         matrix.rotateX(cameraAngleX * (PI.toFloat() / 180f))
@@ -282,16 +362,6 @@ class AtomModelShader {
         val matrix = org.joml.Matrix4f()
         matrix.perspective(45f * (PI.toFloat() / 180f), 1000f / 800f, 0.1f, 100f)
         return matrix.get(FloatArray(16)).toFloatBuffer()
-    }
-
-    private fun drawNucleus() {
-        val model = org.joml.Matrix4f().scale(nucleusRadius)
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, model.get(FloatArray(16)).toFloatBuffer())
-        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.5f, 1.0f)
-
-        glBindVertexArray(vao)
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 32 * 32 * 6)
-        glBindVertexArray(0)
     }
 
     private fun drawElectrons() {
