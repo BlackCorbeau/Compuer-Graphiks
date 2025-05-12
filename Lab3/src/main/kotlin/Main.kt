@@ -23,20 +23,19 @@ class AtomModelShader {
     // Параметры атома
     private val nucleusRadius = 1.2f
     private val electronRadius = 0.4f
+    private val protonRadius = 0.5f  // Протоны немного больше электронов
     private val orbitRadii = floatArrayOf(4.0f, 6.0f, 8.0f)
     private var rotationAngle = 0.0f
 
     private var nucleusRotationAngle = 0.0f
-    private val electronSpeeds = floatArrayOf(1.0f, 1.3f, 0.8f) // Разные скорости для электронов
-    private val protonSpeeds = floatArrayOf(0.7f, 1.1f, 0.9f)   // Скорости для протонов
+    private val electronSpeeds = floatArrayOf(1.0f, 1.3f, 0.8f)
+    private val protonSpeeds = floatArrayOf(0.7f, 1.1f, 0.9f)
 
     fun run() {
         init()
         loop()
         cleanup()
     }
-
-    // ... (init(), initShaders(), initBuffers() остаются без изменений)
 
     private fun loop() {
         var lastTime = glfwGetTime()
@@ -47,7 +46,7 @@ class AtomModelShader {
 
             glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
-            // Обновление углов вращения с учетом deltaTime
+            // Обновление углов вращения
             nucleusRotationAngle += 0.5f * deltaTime
             rotationAngle += 0.6f * deltaTime
 
@@ -79,32 +78,24 @@ class AtomModelShader {
 
     private fun drawNucleus() {
         val model = org.joml.Matrix4f()
-            .rotateY(nucleusRotationAngle) // Вращение ядра
+            .rotateY(nucleusRotationAngle)
             .scale(nucleusRadius)
 
-        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, model.get(FloatArray(16)).toFloatBuffer())
-        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0.3f, 0.5f, 1.0f)
-
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, floatArrayToBuffer(model.get(FloatArray(16))))
+        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 0.0f)
         glBindVertexArray(vao)
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 32 * 32 * 6)
+        glDrawArrays(GL_TRIANGLES, 0, 32 * 32 * 6)
         glBindVertexArray(0)
     }
 
     private fun drawParticles() {
-        // Цвета для частиц
-        val electronColors = arrayOf(
-            floatArrayOf(1f, 0.2f, 0.2f), // Красный
-            floatArrayOf(0.2f, 1f, 0.2f), // Зеленый
-            floatArrayOf(0.4f, 0.4f, 1f)  // Синий
-        )
+        // Красный цвет для электронов
+        val electronColor = floatArrayOf(1f, 0.0f, 0.0f)
 
-        val protonColors = arrayOf(
-            floatArrayOf(1f, 0.5f, 0.5f), // Светло-красный
-            floatArrayOf(0.5f, 1f, 0.5f), // Светло-зеленый
-            floatArrayOf(0.7f, 0.7f, 1f)  // Светло-синий
-        )
+        // Синий цвет для протонов
+        val protonColor = floatArrayOf(0.0f, 0.0f, 1f)
 
-        // Отрисовка электронов
+        // Отрисовка электронов (красные)
         for (i in 0 until 3) {
             val angle = rotationAngle * electronSpeeds[i]
             val x = orbitRadii[i] * cos(angle.toDouble()).toFloat()
@@ -115,32 +106,32 @@ class AtomModelShader {
                 .translate(x, y, z)
                 .scale(electronRadius)
 
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, model.get(FloatArray(16)).toFloatBuffer())
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, floatArrayToBuffer(model.get(FloatArray(16))))
             glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"),
-                electronColors[i][0], electronColors[i][1], electronColors[i][2])
+                electronColor[0], electronColor[1], electronColor[2])
 
             glBindVertexArray(vao)
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 32 * 32 * 6)
+            glDrawArrays(GL_TRIANGLES, 0, 32 * 32 * 6)
             glBindVertexArray(0)
         }
 
-        // Отрисовка протонов (на других орбитах)
+        // Отрисовка протонов (синие)
         for (i in 0 until 3) {
-            val angle = rotationAngle * protonSpeeds[i] + PI.toFloat() // Смещение на 180 градусов
+            val angle = rotationAngle * protonSpeeds[i] + PI.toFloat()
             val x = (orbitRadii[i] + 1.5f) * cos(angle.toDouble()).toFloat()
             val z = (orbitRadii[i] + 1.5f) * sin(angle.toDouble()).toFloat()
             val y = (orbitRadii[i] + 1.5f) * 0.3f * cos(angle.toDouble() * 1.2).toFloat()
 
             val model = org.joml.Matrix4f()
                 .translate(x, y, z)
-                .scale(electronRadius * 0.8f) // Протоны немного меньше
+                .scale(protonRadius)
 
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, model.get(FloatArray(16)).toFloatBuffer())
+            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, floatArrayToBuffer(model.get(FloatArray(16))))
             glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"),
-                protonColors[i][0], protonColors[i][1], protonColors[i][2])
+                protonColor[0], protonColor[1], protonColor[2])
 
             glBindVertexArray(vao)
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 32 * 32 * 6)
+            glDrawArrays(GL_TRIANGLES, 0, 32 * 32 * 6)
             glBindVertexArray(0)
         }
     }
@@ -160,7 +151,6 @@ class AtomModelShader {
         glfwMakeContextCurrent(window)
         GL.createCapabilities()
 
-        // Инициализация шейдеров
         initShaders()
         initBuffers()
 
@@ -177,7 +167,6 @@ class AtomModelShader {
     }
 
     private fun initShaders() {
-        // Вершинный шейдер
         val vertexShader = """
             #version 330 core
             layout (location = 0) in vec3 aPos;
@@ -197,7 +186,6 @@ class AtomModelShader {
             }
         """.trimIndent()
 
-        // Фрагментный шейдер
         val fragmentShader = """
             #version 330 core
             out vec4 FragColor;
@@ -268,8 +256,8 @@ class AtomModelShader {
         glBindVertexArray(vao)
         glBindBuffer(GL_ARRAY_BUFFER, vbo)
 
-        // Создаем сферу для ядра и электронов
-        val sphereData = createSphereData(1.0f, 32, 32)
+        // Создаем сферу с треугольниками для более качественного отображения
+        val sphereData = createSolidSphereData(1.0f, 32, 32)
         glBufferData(GL_ARRAY_BUFFER, sphereData, GL_STATIC_DRAW)
 
         // Позиции вершин (0)
@@ -284,32 +272,66 @@ class AtomModelShader {
         glBindVertexArray(0)
     }
 
-    private fun createSphereData(radius: Float, sectors: Int, stacks: Int): FloatBuffer {
+    private fun createSolidSphereData(radius: Float, sectors: Int, stacks: Int): FloatBuffer {
         val vertices = mutableListOf<Float>()
+
         val sectorStep = 2 * PI.toFloat() / sectors
         val stackStep = PI.toFloat() / stacks
 
-        for (i in 0..stacks) {
-            val stackAngle = PI.toFloat() / 2 - i * stackStep
-            val xy = radius * cos(stackAngle)
-            val z = radius * sin(stackAngle)
+        for (i in 0 until stacks) {
+            val stackAngle1 = PI.toFloat() / 2 - i * stackStep
+            val stackAngle2 = PI.toFloat() / 2 - (i + 1) * stackStep
+
+            val xy1 = radius * cos(stackAngle1)
+            val z1 = radius * sin(stackAngle1)
+            val xy2 = radius * cos(stackAngle2)
+            val z2 = radius * sin(stackAngle2)
 
             for (j in 0..sectors) {
-                val sectorAngle = j * sectorStep
-                val x = xy * cos(sectorAngle)
-                val y = xy * sin(sectorAngle)
+                val sectorAngle1 = j * sectorStep
+                val sectorAngle2 = (j + 1) * sectorStep
 
-                // Нормаль
-                val nx = x / radius
-                val ny = y / radius
-                val nz = z / radius
+                // Вершины для двух треугольников, образующих квад
+                for (k in 0..1) {
+                    val sa = if (k == 0) sectorAngle1 else sectorAngle2
+                    val stackAngle = if (k == 0) stackAngle1 else stackAngle2
+                    val xy = if (k == 0) xy1 else xy2
+                    val z = if (k == 0) z1 else z2
 
-                vertices.add(x)
-                vertices.add(y)
-                vertices.add(z)
-                vertices.add(nx)
-                vertices.add(ny)
-                vertices.add(nz)
+                    val x = xy * cos(sa)
+                    val y = xy * sin(sa)
+
+                    val nx = x / radius
+                    val ny = y / radius
+                    val nz = z / radius
+
+                    vertices.add(x)
+                    vertices.add(y)
+                    vertices.add(z)
+                    vertices.add(nx)
+                    vertices.add(ny)
+                    vertices.add(nz)
+                }
+
+                // Вторая пара вершин для завершения квада
+                val x1 = xy1 * cos(sectorAngle1)
+                val y1 = xy1 * sin(sectorAngle1)
+                val x2 = xy2 * cos(sectorAngle1)
+                val y2 = xy2 * sin(sectorAngle1)
+                val x3 = xy1 * cos(sectorAngle2)
+                val y3 = xy1 * sin(sectorAngle2)
+                val x4 = xy2 * cos(sectorAngle2)
+                val y4 = xy2 * sin(sectorAngle2)
+
+                // Первый треугольник
+                addVertexWithNormal(vertices, x1, y1, z1, radius)
+                addVertexWithNormal(vertices, x2, y2, z2, radius)
+                addVertexWithNormal(vertices, x3, y3, z1, radius)
+
+                // Второй треугольник
+                addVertexWithNormal(vertices, x2, y2, z2, radius)
+                addVertexWithNormal(vertices, x4, y4, z2, radius)
+                addVertexWithNormal(vertices, x3, y3, z1, radius)
             }
         }
 
@@ -317,6 +339,15 @@ class AtomModelShader {
         vertices.forEach { buffer.put(it) }
         buffer.flip()
         return buffer
+    }
+
+    private fun addVertexWithNormal(vertices: MutableList<Float>, x: Float, y: Float, z: Float, radius: Float) {
+        vertices.add(x)
+        vertices.add(y)
+        vertices.add(z)
+        vertices.add(x / radius)
+        vertices.add(y / radius)
+        vertices.add(z / radius)
     }
 
     private fun setupControls() {
@@ -355,44 +386,19 @@ class AtomModelShader {
         matrix.rotateX(cameraAngleX * (PI.toFloat() / 180f))
         matrix.rotateY(cameraAngleY * (PI.toFloat() / 180f))
         matrix.translate(0f, 0f, -cameraDistance)
-        return matrix.get(FloatArray(16)).toFloatBuffer()
+        return floatArrayToBuffer(matrix.get(FloatArray(16)))
     }
 
     private fun createProjectionMatrix(): FloatBuffer {
         val matrix = org.joml.Matrix4f()
         matrix.perspective(45f * (PI.toFloat() / 180f), 1000f / 800f, 0.1f, 100f)
-        return matrix.get(FloatArray(16)).toFloatBuffer()
+        return floatArrayToBuffer(matrix.get(FloatArray(16)))
     }
 
-    private fun drawElectrons() {
-        val colors = arrayOf(
-            floatArrayOf(1f, 0.2f, 0.2f), // Красный
-            floatArrayOf(0.2f, 1f, 0.2f), // Зеленый
-            floatArrayOf(0.4f, 0.4f, 1f)  // Синий
-        )
-
-        for (i in 0 until 3) {
-            val angle = rotationAngle * (1 + i * 0.3f)
-            val x = orbitRadii[i] * cos(angle.toDouble()).toFloat()
-            val z = orbitRadii[i] * sin(angle.toDouble()).toFloat()
-            val y = orbitRadii[i] * 0.3f * sin(angle.toDouble() * 1.5).toFloat()
-
-            val model = org.joml.Matrix4f()
-                .translate(x, y, z)
-                .scale(electronRadius)
-
-            glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, model.get(FloatArray(16)).toFloatBuffer())
-            glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), colors[i][0], colors[i][1], colors[i][2])
-
-            glBindVertexArray(vao)
-            glDrawArrays(GL_TRIANGLE_STRIP, 0, 32 * 32 * 6)
-            glBindVertexArray(0)
-        }
-    }
-
-    private fun FloatArray.toFloatBuffer(): FloatBuffer {
-        val buffer = org.lwjgl.BufferUtils.createFloatBuffer(size)
-        buffer.put(this)
+    // Добавляем вспомогательную функцию для преобразования FloatArray в FloatBuffer
+    private fun floatArrayToBuffer(array: FloatArray): FloatBuffer {
+        val buffer = org.lwjgl.BufferUtils.createFloatBuffer(array.size)
+        buffer.put(array)
         buffer.flip()
         return buffer
     }
