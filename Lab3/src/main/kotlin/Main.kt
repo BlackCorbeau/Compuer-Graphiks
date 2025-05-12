@@ -287,48 +287,29 @@ class AtomModelShader {
             val xy2 = radius * cos(stackAngle2)
             val z2 = radius * sin(stackAngle2)
 
-            for (j in 0..sectors) {
+            for (j in 0 until sectors) {
                 val sectorAngle1 = j * sectorStep
                 val sectorAngle2 = (j + 1) * sectorStep
 
                 // Вершины для двух треугольников, образующих квад
-                for (k in 0..1) {
-                    val sa = if (k == 0) sectorAngle1 else sectorAngle2
-                    val stackAngle = if (k == 0) stackAngle1 else stackAngle2
-                    val xy = if (k == 0) xy1 else xy2
-                    val z = if (k == 0) z1 else z2
-
-                    val x = xy * cos(sa)
-                    val y = xy * sin(sa)
-
-                    val nx = x / radius
-                    val ny = y / radius
-                    val nz = z / radius
-
-                    vertices.add(x)
-                    vertices.add(y)
-                    vertices.add(z)
-                    vertices.add(nx)
-                    vertices.add(ny)
-                    vertices.add(nz)
-                }
-
-                // Вторая пара вершин для завершения квада
                 val x1 = xy1 * cos(sectorAngle1)
                 val y1 = xy1 * sin(sectorAngle1)
+
                 val x2 = xy2 * cos(sectorAngle1)
                 val y2 = xy2 * sin(sectorAngle1)
+
                 val x3 = xy1 * cos(sectorAngle2)
                 val y3 = xy1 * sin(sectorAngle2)
+
                 val x4 = xy2 * cos(sectorAngle2)
                 val y4 = xy2 * sin(sectorAngle2)
 
-                // Первый треугольник
+                // Первый треугольник (верхний)
                 addVertexWithNormal(vertices, x1, y1, z1, radius)
                 addVertexWithNormal(vertices, x2, y2, z2, radius)
                 addVertexWithNormal(vertices, x3, y3, z1, radius)
 
-                // Второй треугольник
+                // Второй треугольник (нижний)
                 addVertexWithNormal(vertices, x2, y2, z2, radius)
                 addVertexWithNormal(vertices, x4, y4, z2, radius)
                 addVertexWithNormal(vertices, x3, y3, z1, radius)
@@ -342,9 +323,12 @@ class AtomModelShader {
     }
 
     private fun addVertexWithNormal(vertices: MutableList<Float>, x: Float, y: Float, z: Float, radius: Float) {
+        // Позиция вершины
         vertices.add(x)
         vertices.add(y)
         vertices.add(z)
+
+        // Нормаль (нормализованный вектор от центра к вершине)
         vertices.add(x / radius)
         vertices.add(y / radius)
         vertices.add(z / radius)
