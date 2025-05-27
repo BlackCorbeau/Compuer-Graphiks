@@ -2,11 +2,20 @@ package org.exampl
 
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.opengl.GL
-import org.lwjgl.opengl.GL20.*
 import org.lwjgl.opengl.GL30.*
 import org.lwjgl.system.MemoryUtil.*
 import java.nio.FloatBuffer
 import kotlin.math.*
+
+import java.io.ByteArrayOutputStream
+import java.net.URI
+import javax.imageio.ImageIO
+
+import java.nio.ByteBuffer
+
+import java.io.ByteArrayInputStream
+
+
 
 class AtomModelShader {
     private var window: Long = 0
@@ -14,6 +23,8 @@ class AtomModelShader {
     private var shaderProgram = 0
     private var vao = 0
     private var vbo = 0
+    private var planeVao = 0
+    private var planeVbo = 0
 
     // Параметры камеры
     private var cameraDistance = 15.0f
@@ -31,6 +42,59 @@ class AtomModelShader {
     private val electronSpeeds = floatArrayOf(1.0f, 1.3f, 0.8f)
     private val protonSpeeds = floatArrayOf(0.7f, 1.1f, 0.9f)
 
+    private var depthMapFBO: Int = 0
+    private var depthMap: Int = 0
+    private var earthTexture: Int = 0
+
+    private fun initShadowMap() {
+        // Создание FBO
+        depthMapFBO = glGenFramebuffers()
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO)
+
+        // Создание текстуры глубины
+        depthMap = glGenTextures()
+        glBindTexture(GL_TEXTURE_2D, depthMap)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT16, 1024, 1024, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER)
+        val borderColor = floatArrayOf(1.0f, 1.0f, 1.0f, 1.0f)
+        glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor)
+
+        // Привязка текстуры глубины к FBO
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0)
+        glDrawBuffer(GL_NONE)
+        glReadBuffer(GL_NONE)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+    }
+
+
+    private fun renderSceneFromLight() {
+        glViewport(0, 0, 1024, 1024)
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO)
+        glClear(GL_DEPTH_BUFFER_BIT)
+
+        val lightProjection = org.joml.Matrix4f().ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 20.0f)
+        val lightView = org.joml.Matrix4f().lookAt(
+            0f, 10f, 0f,  // Позиция источника света
+            0f, 0f, 0f,    // Точка, на которую смотрит источник света
+            0f, 0f, 1f     // Вектор "вверх"
+        )
+        val lightSpaceMatrix = lightProjection.mul(lightView)
+
+        glUseProgram(shaderProgram)
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "lightSpaceMatrix"), false, floatArrayToBuffer(lightSpaceMatrix.get(FloatArray(16))))
+
+        // Отрисовка сцены
+        drawNucleus()
+        drawParticles()
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        glViewport(0, 0, 1000, 800)
+    }
+
+
     fun run() {
         init()
         loop()
@@ -38,11 +102,15 @@ class AtomModelShader {
     }
 
     private fun loop() {
+        initShadowMap()
+
         var lastTime = glfwGetTime()
         while (isRunning && !glfwWindowShouldClose(window)) {
             val currentTime = glfwGetTime()
             val deltaTime = (currentTime - lastTime).toFloat()
             lastTime = currentTime
+
+            renderSceneFromLight()
 
             glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
 
@@ -62,8 +130,10 @@ class AtomModelShader {
             glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "projection"), false, projection)
             glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 10f, 10f, 10f)
             glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1f, 1f, 1f)
-            glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"),
-                0f, 0f, cameraDistance)
+            glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 0f, 0f, cameraDistance)
+
+            // Отрисовка плоскости
+            drawPlane()
 
             // Отрисовка ядра с вращением
             drawNucleus()
@@ -76,6 +146,62 @@ class AtomModelShader {
         }
     }
 
+    private fun loadImageFromUrl(imageUrl: String): ByteArray {
+        val url = URI(imageUrl).toURL()
+        val image = ImageIO.read(url)
+        val outputStream = ByteArrayOutputStream()
+        ImageIO.write(image, "png", outputStream)
+        return outputStream.toByteArray()
+    }
+
+    private fun createTextureFromImage(imageData: ByteArray): Int {
+        val image = ImageIO.read(ByteArrayInputStream(imageData))
+        val width = image.width
+        val height = image.height
+
+        // Создание буфера для изображения
+        val imageBuffer = ByteBuffer.allocateDirect(width * height * 4)
+        val pixels = IntArray(width * height)
+        image.getRGB(0, 0, width, height, pixels, 0, width)
+
+        for (y in 0 until height) {
+            for (x in 0 until width) {
+                val pixel = pixels[y * width + x]
+                imageBuffer.put((pixel shr 16 and 0xFF).toByte())  // R
+                imageBuffer.put((pixel shr 8 and 0xFF).toByte())   // G
+                imageBuffer.put((pixel and 0xFF).toByte())         // B
+                imageBuffer.put((pixel shr 24 and 0xFF).toByte())  // A
+            }
+        }
+        imageBuffer.flip()
+
+        val texture = glGenTextures()
+        glBindTexture(GL_TEXTURE_2D, texture)
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
+
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, imageBuffer)
+
+        return texture
+    }
+
+
+
+    private fun drawPlane() {
+        val model = org.joml.Matrix4f()
+            .translate(0f, -7f, 5f)  // Помещаем плоскость ниже модели
+            .scale(50f, 1f, 50f)  // Масштабируем плоскость, чтобы она покрывала всё пространство
+
+        glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, floatArrayToBuffer(model.get(FloatArray(16))))
+        glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 0f, 0.5f, 0f)  // Серый цвет
+        glBindVertexArray(planeVao)
+        glDrawArrays(GL_TRIANGLES, 0, 6)
+        glBindVertexArray(0)
+    }
+
     private fun drawNucleus() {
         val model = org.joml.Matrix4f()
             .rotateY(nucleusRotationAngle)
@@ -83,10 +209,18 @@ class AtomModelShader {
 
         glUniformMatrix4fv(glGetUniformLocation(shaderProgram, "model"), false, floatArrayToBuffer(model.get(FloatArray(16))))
         glUniform3f(glGetUniformLocation(shaderProgram, "objectColor"), 1.0f, 1.0f, 0.0f)
+
+        // Применение текстуры
+        glActiveTexture(GL_TEXTURE0)
+        glBindTexture(GL_TEXTURE_2D, earthTexture)
+        glUniform1i(glGetUniformLocation(shaderProgram, "texture_diffuse1"), 0)
+
         glBindVertexArray(vao)
         glDrawArrays(GL_TRIANGLES, 0, 32 * 32 * 6)
         glBindVertexArray(0)
     }
+
+
 
     private fun drawParticles() {
         // Красный цвет для электронов
@@ -151,15 +285,25 @@ class AtomModelShader {
         glfwMakeContextCurrent(window)
         GL.createCapabilities()
 
+        if (!glfwInit()) throw IllegalStateException("Unable to initialize GLFW")
+
+        // Инициализация окна и контекста OpenGL
+
         initShaders()
         initBuffers()
+
+        // Загрузка изображения из интернета
+        try {
+            val imageData = loadImageFromUrl("https://ink-project.ru/sites/1-ink-project/photoalbums/10214.jpg")  // Замените на URL вашего изображения
+            earthTexture = createTextureFromImage(imageData)
+        } catch (e: Exception) {
+            println("Failed to load texture: ${e.message}")
+        }
 
         glEnable(GL_DEPTH_TEST)
         glClearColor(0.1f, 0.1f, 0.15f, 1.0f)
 
-        glfwSetFramebufferSizeCallback(window) { _, width, height ->
-            glViewport(0, 0, width, height)
-        }
+        // Настройка окна и других параметров
 
         glfwShowWindow(window)
         isRunning = true
@@ -171,52 +315,71 @@ class AtomModelShader {
             #version 330 core
             layout (location = 0) in vec3 aPos;
             layout (location = 1) in vec3 aNormal;
-            
+
             out vec3 Normal;
             out vec3 FragPos;
-            
+            out vec4 FragPosLightSpace;
+
             uniform mat4 model;
             uniform mat4 view;
             uniform mat4 projection;
-            
+            uniform mat4 lightSpaceMatrix;
+
             void main() {
                 gl_Position = projection * view * model * vec4(aPos, 1.0);
                 FragPos = vec3(model * vec4(aPos, 1.0));
                 Normal = mat3(transpose(inverse(model))) * aNormal;
+                FragPosLightSpace = lightSpaceMatrix * vec4(FragPos, 1.0);
             }
         """.trimIndent()
 
         val fragmentShader = """
             #version 330 core
             out vec4 FragColor;
-            
+
             in vec3 Normal;
             in vec3 FragPos;
-            
+            in vec4 FragPosLightSpace;
+
             uniform vec3 objectColor;
             uniform vec3 lightPos;
             uniform vec3 lightColor;
             uniform vec3 viewPos;
-            
+            uniform sampler2D shadowMap;
+
+            float ShadowCalculation(vec4 fragPosLightSpace) {
+                vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+                projCoords = projCoords * 0.5 + 0.5;
+                float closestDepth = texture(shadowMap, projCoords.xy).r;
+                float currentDepth = projCoords.z;
+                float shadow = currentDepth > closestDepth ? 0.5 : 1.0;
+                return shadow;
+            }
+
             void main() {
+                vec3 color = objectColor;
+                vec3 normal = normalize(Normal);
+                vec3 lightDir = normalize(lightPos - FragPos);
+
                 // Ambient
                 float ambientStrength = 0.1;
                 vec3 ambient = ambientStrength * lightColor;
-                
-                // Diffuse 
-                vec3 norm = normalize(Normal);
-                vec3 lightDir = normalize(lightPos - FragPos);
-                float diff = max(dot(norm, lightDir), 0.0);
+
+                // Diffuse
+                float diff = max(dot(normal, lightDir), 0.0);
                 vec3 diffuse = diff * lightColor;
-                
+
                 // Specular
                 float specularStrength = 0.5;
                 vec3 viewDir = normalize(viewPos - FragPos);
-                vec3 reflectDir = reflect(-lightDir, norm);
+                vec3 reflectDir = reflect(-lightDir, normal);
                 float spec = pow(max(dot(viewDir, reflectDir), 0.0), 32);
                 vec3 specular = specularStrength * spec * lightColor;
-                
-                vec3 result = (ambient + diffuse + specular) * objectColor;
+
+                // Тень
+                float shadow = ShadowCalculation(FragPosLightSpace);
+
+                vec3 result = (ambient + shadow * (diffuse + specular)) * color;
                 FragColor = vec4(result, 1.0);
             }
         """.trimIndent()
@@ -259,6 +422,42 @@ class AtomModelShader {
         // Создаем сферу с треугольниками для более качественного отображения
         val sphereData = createSolidSphereData(1.0f, 32, 32)
         glBufferData(GL_ARRAY_BUFFER, sphereData, GL_STATIC_DRAW)
+
+        // Позиции вершин (0)
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 8 * Float.SIZE_BYTES, 0)
+        glEnableVertexAttribArray(0)
+
+        // Нормали (1)
+        glVertexAttribPointer(1, 3, GL_FLOAT, false, 8 * Float.SIZE_BYTES, 3 * Float.SIZE_BYTES.toLong())
+        glEnableVertexAttribArray(1)
+
+        // Координаты текстуры (2)
+        glVertexAttribPointer(2, 2, GL_FLOAT, false, 8 * Float.SIZE_BYTES, 6 * Float.SIZE_BYTES.toLong())
+        glEnableVertexAttribArray(2)
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindVertexArray(0)
+    }
+
+
+    private fun initPlaneBuffers() {
+        planeVao = glGenVertexArrays()
+        planeVbo = glGenBuffers()
+
+        glBindVertexArray(planeVao)
+        glBindBuffer(GL_ARRAY_BUFFER, planeVbo)
+
+        // Вершины для плоскости (два треугольника)
+        val planeVertices = floatArrayOf(
+            -1.0f, 0.0f, -1.0f,  0.0f, 1.0f, 0.0f,
+            1.0f, 0.0f, -1.0f,  0.0f, 1.0f, 0.0f,
+            1.0f, 0.0f,  1.0f,  0.0f, 1.0f, 0.0f,
+            1.0f, 0.0f,  1.0f,  0.0f, 1.0f, 0.0f,
+            -1.0f, 0.0f,  1.0f,  0.0f, 1.0f, 0.0f,
+            -1.0f, 0.0f, -1.0f,  0.0f, 1.0f, 0.0f
+        )
+
+        glBufferData(GL_ARRAY_BUFFER, planeVertices, GL_STATIC_DRAW)
 
         // Позиции вершин (0)
         glVertexAttribPointer(0, 3, GL_FLOAT, false, 6 * Float.SIZE_BYTES, 0)
@@ -305,14 +504,14 @@ class AtomModelShader {
                 val y4 = xy2 * sin(sectorAngle2)
 
                 // Первый треугольник (верхний)
-                addVertexWithNormal(vertices, x1, y1, z1, radius)
-                addVertexWithNormal(vertices, x2, y2, z2, radius)
-                addVertexWithNormal(vertices, x3, y3, z1, radius)
+                addVertexWithNormalAndTexCoord(vertices, x1, y1, z1, radius, sectorAngle1 / (2 * PI.toFloat()), stackAngle1 / PI.toFloat())
+                addVertexWithNormalAndTexCoord(vertices, x2, y2, z2, radius, sectorAngle1 / (2 * PI.toFloat()), stackAngle2 / PI.toFloat())
+                addVertexWithNormalAndTexCoord(vertices, x3, y3, z1, radius, sectorAngle2 / (2 * PI.toFloat()), stackAngle1 / PI.toFloat())
 
                 // Второй треугольник (нижний)
-                addVertexWithNormal(vertices, x2, y2, z2, radius)
-                addVertexWithNormal(vertices, x4, y4, z2, radius)
-                addVertexWithNormal(vertices, x3, y3, z1, radius)
+                addVertexWithNormalAndTexCoord(vertices, x2, y2, z2, radius, sectorAngle1 / (2 * PI.toFloat()), stackAngle2 / PI.toFloat())
+                addVertexWithNormalAndTexCoord(vertices, x4, y4, z2, radius, sectorAngle2 / (2 * PI.toFloat()), stackAngle2 / PI.toFloat())
+                addVertexWithNormalAndTexCoord(vertices, x3, y3, z1, radius, sectorAngle2 / (2 * PI.toFloat()), stackAngle1 / PI.toFloat())
             }
         }
 
@@ -321,6 +520,23 @@ class AtomModelShader {
         buffer.flip()
         return buffer
     }
+
+    private fun addVertexWithNormalAndTexCoord(vertices: MutableList<Float>, x: Float, y: Float, z: Float, radius: Float, u: Float, v: Float) {
+        // Позиция вершины
+        vertices.add(x)
+        vertices.add(y)
+        vertices.add(z)
+
+        // Нормаль (нормализованный вектор от центра к вершине)
+        vertices.add(x / radius)
+        vertices.add(y / radius)
+        vertices.add(z / radius)
+
+        // Координаты текстуры
+        vertices.add(u)
+        vertices.add(v)
+    }
+
 
     private fun addVertexWithNormal(vertices: MutableList<Float>, x: Float, y: Float, z: Float, radius: Float) {
         // Позиция вершины
@@ -390,6 +606,8 @@ class AtomModelShader {
     private fun cleanup() {
         glDeleteVertexArrays(vao)
         glDeleteBuffers(vbo)
+        glDeleteVertexArrays(planeVao)
+        glDeleteBuffers(planeVbo)
         glDeleteProgram(shaderProgram)
         glfwDestroyWindow(window)
         glfwTerminate()
